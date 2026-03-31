@@ -18,97 +18,6 @@
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
 
-  /* QUEUE SCREEN */
-  #queue-screen { display: block; }
-  #editor-screen { display: none; }
-
-  .header {
-    border-bottom: 1px solid var(--border);
-    padding: 16px 24px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    position: sticky;
-    top: 0;
-    background: var(--bg);
-    z-index: 100;
-  }
-  .logo {
-    width: 32px; height: 32px;
-    background: var(--accent);
-    border-radius: 8px;
-    display: flex; align-items: center; justify-content: center;
-    font-weight: 900; font-size: 15px; color: #fff;
-    flex-shrink: 0;
-  }
-  .header-title { font-size: 13px; font-weight: 800; letter-spacing: 0.5px; }
-  .header-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
-
-  .queue-container { max-width: 640px; margin: 0 auto; padding: 32px 24px; }
-  .queue-title { font-size: 22px; font-weight: 800; margin-bottom: 8px; }
-  .queue-subtitle { font-size: 13px; color: var(--text-muted); margin-bottom: 32px; }
-
-  .queue-empty {
-    text-align: center;
-    padding: 80px 24px;
-    color: var(--text-muted);
-  }
-  .queue-empty-icon { font-size: 48px; margin-bottom: 16px; }
-  .queue-empty-text { font-size: 15px; }
-
-  .queue-list { display: flex; flex-direction: column; gap: 12px; }
-  .queue-item {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 20px;
-    cursor: pointer;
-    transition: border-color 0.15s, transform 0.1s;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-  .queue-item:hover {
-    border-color: var(--accent);
-    transform: translateY(-1px);
-  }
-  .queue-item-num {
-    width: 36px; height: 36px;
-    background: #1a1a1a;
-    border-radius: 8px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 13px; font-weight: 700; color: var(--text-muted);
-    flex-shrink: 0;
-  }
-  .queue-item-info { flex: 1; min-width: 0; }
-  .queue-item-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .queue-item-meta { font-size: 12px; color: var(--text-muted); }
-  .queue-item-arrow { color: var(--text-muted); font-size: 18px; }
-  .queue-item-template {
-    background: #1a1a1a;
-    border-radius: 6px;
-    padding: 3px 8px;
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--accent);
-    flex-shrink: 0;
-  }
-
-  .btn {
-    padding: 10px 20px;
-    border-radius: 8px;
-    border: none;
-    cursor: pointer;
-    font-family: 'DM Sans', sans-serif;
-    font-weight: 700;
-    font-size: 13px;
-    transition: opacity 0.15s;
-  }
-  .btn:hover { opacity: 0.85; }
-  .btn-primary { background: var(--accent); color: #fff; }
-  .btn-ghost { background: #1a1a1a; color: var(--text); border: 1px solid var(--border); }
-  .btn-danger { background: #1a1a1a; color: #ff4444; border: 1px solid #ff444433; }
-
   /* EDITOR SCREEN */
   .editor-layout {
     display: flex;
@@ -298,28 +207,9 @@
 </head>
 <body>
 
-<!-- QUEUE SCREEN -->
-<div id="queue-screen">
-  <div class="header">
-    <div class="logo">P</div>
-    <div class="header-title">PFEFFER CAROUSEL</div>
-    <div class="header-right">
-      <button class="btn btn-ghost" onclick="loadQueue()">↻ Aktualisieren</button>
-    </div>
-  </div>
-  <div class="queue-container">
-    <div class="queue-title">Warteschlange</div>
-    <div class="queue-subtitle">Karussells die auf Fertigstellung warten</div>
-    <div id="queue-list" class="queue-list">
-      <div class="loading"><div class="spin"></div>Lade Karussells...</div>
-    </div>
-  </div>
-</div>
-
 <!-- EDITOR SCREEN -->
 <div id="editor-screen">
   <div class="header">
-    <button class="btn btn-ghost" onclick="showQueue()" style="padding:6px 12px;font-size:12px;">← Zurück</button>
     <div class="logo" style="margin-left:8px;">P</div>
     <div id="editor-title" class="header-title" style="margin-left:4px;"></div>
     <div class="header-right">
@@ -632,49 +522,6 @@ let isDragging = false;
 let dragStart = {x:0, y:0};
 
 // ═══════════════════════════════════════════════════════
-// QUEUE SCREEN
-// ═══════════════════════════════════════════════════════
-async function loadQueue() {
-  const list = document.getElementById('queue-list');
-  list.innerHTML = '<div class="loading"><div class="spin"></div>Lade Karussells...</div>';
-  try {
-    const data = await supabase('GET', '/rest/v1/carousels?status=eq.waiting&order=created_at.asc&select=*');
-    if (!data || data.length === 0) {
-      list.innerHTML = `<div class="queue-empty">
-        <div class="queue-empty-icon">📭</div>
-        <div class="queue-empty-text">Keine Karussells in der Warteschlange.<br>Erstelle eines über Telegram.</div>
-      </div>`;
-      return;
-    }
-    list.innerHTML = '';
-    data.forEach((item, i) => {
-      const date = new Date(item.created_at).toLocaleDateString('de-AT', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
-      const div = document.createElement('div');
-      div.className = 'queue-item';
-      div.innerHTML = `
-        <div class="queue-item-num">${i+1}</div>
-        <div class="queue-item-info">
-          <div class="queue-item-title">${item.title || 'Ohne Titel'}</div>
-          <div class="queue-item-meta">${date} · ${(typeof item.slides === 'string' ? JSON.parse(item.slides) : item.slides).length} Slides</div>
-        </div>
-        <div class="queue-item-template">T${item.template}</div>
-        <div class="queue-item-arrow">›</div>
-      `;
-      div.onclick = () => openCarousel(item);
-      list.appendChild(div);
-    });
-  } catch(e) {
-    list.innerHTML = `<div class="queue-empty"><div class="queue-empty-text">Fehler: ${e.message}</div></div>`;
-  }
-}
-
-function showQueue() {
-  document.getElementById('queue-screen').style.display = 'block';
-  document.getElementById('editor-screen').style.display = 'none';
-  loadQueue();
-}
-
-// ═══════════════════════════════════════════════════════
 // OPEN CAROUSEL FROM QUEUE
 // ═══════════════════════════════════════════════════════
 function openCarousel(item) {
@@ -684,7 +531,6 @@ function openCarousel(item) {
   currentImgPositions = {};
   activeSlide = 0;
 
-  document.getElementById('queue-screen').style.display = 'none';
   document.getElementById('editor-screen').style.display = 'block';
   document.getElementById('editor-title').textContent = item.title || 'Karussell';
 
@@ -1038,7 +884,6 @@ async function markDone() {
   if (!confirm('Karussell als erledigt markieren?')) return;
   try {
     await supabase('PATCH', '/rest/v1/carousels?id=eq.' + currentCarousel.id, {status: 'done'});
-    showQueue();
   } catch(e) {
     alert('Fehler: ' + e.message);
   }
@@ -1047,7 +892,17 @@ async function markDone() {
 // ═══════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════
-loadQueue();
+// Init: direkt mit leeren Standard-Slides starten
+openCarousel({
+  id: null,
+  title: 'Karussell',
+  template: 1,
+  slides: [
+    { type: 'image-cover', text: '' },
+    { type: 'text', paragraphs: [''] },
+    { type: 'image-pill', pills: ['', ''], lastOrange: false }
+  ]
+});
 </script>
 </body>
 </html>

@@ -305,6 +305,7 @@
     <div class="header-title">PFEFFER CAROUSEL</div>
     <div class="header-right">
       <button class="btn btn-ghost" onclick="loadQueue()">↻ Aktualisieren</button>
+      <button class="btn btn-primary" onclick="showNewCarouselModal()">+ Neu</button>
     </div>
   </div>
   <div class="queue-container">
@@ -1036,6 +1037,7 @@ async function exportAll() {
 async function markDone() {
   if (!currentCarousel) return;
   if (!confirm('Karussell als erledigt markieren?')) return;
+  if (!currentCarousel.id) { showQueue(); return; }
   try {
     await supabase('PATCH', '/rest/v1/carousels?id=eq.' + currentCarousel.id, {status: 'done'});
     showQueue();
@@ -1048,6 +1050,104 @@ async function markDone() {
 // INIT
 // ═══════════════════════════════════════════════════════
 loadQueue();
+
+// ═══════════════════════════════════════════════════════
+// NEUES KARUSSELL — MANUELL
+// ═══════════════════════════════════════════════════════
+let newSlides = [];
+
+function showNewCarouselModal() {
+  newSlides = [{ type: 'image-cover', text: '' }];
+  renderNewModal();
+  document.getElementById('new-modal-overlay').style.display = 'flex';
+}
+
+function closeNewModal() {
+  document.getElementById('new-modal-overlay').style.display = 'none';
+}
+
+function renderNewModal() {
+  const list = document.getElementById('new-slides-list');
+  list.innerHTML = '';
+  newSlides.forEach((slide, i) => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:8px;';
+    row.innerHTML = `
+      <span style="font-size:12px;color:#666;width:20px;flex-shrink:0;">${i+1}.</span>
+      <select data-idx="${i}" class="slide-type-sel" style="flex:1;background:#0f0f0f;border:1px solid #1e1e1e;border-radius:8px;color:#fff;font-size:12px;padding:7px 10px;font-family:'DM Sans',sans-serif;outline:none;">
+        <option value="image-cover" ${slide.type==='image-cover'?'selected':''}>Cover (Bild + Text)</option>
+        <option value="text" ${slide.type==='text'?'selected':''}>Text Slide</option>
+        <option value="image-pill" ${slide.type==='image-pill'?'selected':''}>Bild + Pills</option>
+      </select>
+      ${newSlides.length > 1 ? `<button onclick="removeNewSlide(${i})" style="background:#1a1a1a;border:1px solid #ff444433;border-radius:6px;color:#ff4444;padding:5px 9px;cursor:pointer;font-size:13px;">×</button>` : ''}
+    `;
+    row.querySelector('.slide-type-sel').onchange = e => {
+      const t = e.target.value;
+      if (t === 'image-cover') newSlides[i] = { type: 'image-cover', text: '' };
+      else if (t === 'text') newSlides[i] = { type: 'text', paragraphs: [''] };
+      else if (t === 'image-pill') newSlides[i] = { type: 'image-pill', pills: ['', ''], lastOrange: false };
+    };
+    list.appendChild(row);
+  });
+}
+
+function addNewSlide() {
+  newSlides.push({ type: 'text', paragraphs: [''] });
+  renderNewModal();
+}
+
+function removeNewSlide(i) {
+  newSlides.splice(i, 1);
+  renderNewModal();
+}
+
+function createNewCarousel() {
+  const titleEl = document.getElementById('new-title-input');
+  const templateEl = document.getElementById('new-template-select');
+  const title = titleEl.value.trim() || 'Neues Karussell';
+  const template = parseInt(templateEl.value);
+  closeNewModal();
+  openCarousel({
+    id: null,
+    title,
+    template,
+    slides: JSON.parse(JSON.stringify(newSlides)),
+    status: 'manual'
+  });
+}
 </script>
+
+<!-- NEUES KARUSSELL MODAL -->
+<div id="new-modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:999;align-items:center;justify-content:center;">
+  <div style="background:#141414;border:1px solid #1e1e1e;border-radius:16px;padding:28px;width:360px;max-width:90vw;max-height:90vh;overflow-y:auto;">
+    <div style="font-size:16px;font-weight:800;margin-bottom:20px;">Neues Karussell</div>
+
+    <div style="margin-bottom:16px;">
+      <div style="font-size:11px;font-weight:700;color:#666;letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px;">Titel</div>
+      <input type="text" id="new-title-input" placeholder="z.B. 5 Tipps für mehr Energie" style="width:100%;">
+    </div>
+
+    <div style="margin-bottom:16px;">
+      <div style="font-size:11px;font-weight:700;color:#666;letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px;">Template</div>
+      <select id="new-template-select" style="width:100%;background:#0f0f0f;border:1px solid #1e1e1e;border-radius:8px;color:#fff;font-size:12px;padding:9px 11px;font-family:'DM Sans',sans-serif;outline:none;">
+        <option value="1">Template 1</option>
+        <option value="2">Template 2</option>
+        <option value="3">Template 3</option>
+      </select>
+    </div>
+
+    <div style="margin-bottom:8px;">
+      <div style="font-size:11px;font-weight:700;color:#666;letter-spacing:.5px;text-transform:uppercase;margin-bottom:8px;">Slides</div>
+      <div id="new-slides-list"></div>
+      <button onclick="addNewSlide()" style="width:100%;padding:8px;border-radius:7px;border:1px dashed #1e1e1e;background:transparent;color:#666;font-size:12px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;margin-top:4px;">+ Slide hinzufügen</button>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:20px;">
+      <button class="btn btn-ghost" onclick="closeNewModal()" style="flex:1;">Abbrechen</button>
+      <button class="btn btn-primary" onclick="createNewCarousel()" style="flex:1;">Erstellen</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
